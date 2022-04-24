@@ -8,3 +8,8 @@ edition = "2021"
 [dependencies]
 actix-files = "0.6.0"
 actix-web = "4.0.1"
+serde = { version="1.0.136", features = ["derive"] }
+serde_json = "1.0.79"
+validator = { version="0.14.0", features = ["derive"] }
+uuid = { version = "1.0.0", features = ["serde", "v4"] }
+tokio = { version = "1.17.0", features = ["process"] }

@@ -1,11 +1,66 @@
-use actix_files as fs;
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+use actix_files as web_fs;
+use actix_web::{post, web, App, HttpResponse, HttpServer, Responder};
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::Path;
+use tokio::process::Command;
+
+#[derive(Deserialize)]
+struct VcpkgPrepareRequest {
+    pkgs: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct VcpkgPrepareResponse {
+    pkgs: Vec<String>,
+}
+
+#[post("/api/prepare")]
+async fn prepare(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
+    let outdir = "../pkgfiles";
+
+    if !Path::exists(Path::new(outdir)) {
+        let res = fs::create_dir(outdir);
+        if let Err(_) = res {
+            println!("err: creating directory");
+            return HttpResponse::InternalServerError().finish();
+        }
+    }
+
+    let res = Command::new("vcpkg")
+        .arg("install")
+        .args(&req.pkgs)
+        .output()
+        .await;
+
+    match res {
+        Ok(out) => {
+            if out.status.success() {
+                println!("{}", String::from_utf8_lossy(&out.stdout));
+            } else {
+                println!("err: vcpkg");
+                println!("{}", String::from_utf8_lossy(&out.stdout));
+                return HttpResponse::InternalServerError().finish();
+            }
+        }
+        Err(e) => {
+            println!("err: command execution err");
+            println!("{}", e.to_string());
+            return HttpResponse::InternalServerError().finish();
+        }
+    }
+
+    HttpResponse::Created().json(VcpkgPrepareResponse {
+        pkgs: req.pkgs.clone(),
+    })
+}
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
         App::new()
-            .service(fs::Files::new("/", "../frontend/dist").index_file("index.html"))
+            .service(prepare)
+            .service(web_fs::Files::new("/", "../frontend/dist").index_file("index.html"))
     })
     .bind(("127.0.0.1", 8080))?
     .run()
