@@ -1,0 +1,14 @@
+{
+  "name": "vcpkg-tank-frontend",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "build": "parcel build src/index.html",
+    "watch": "parcel watch src/index.html"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "parcel": "^2.5.0"
+  }
+}
