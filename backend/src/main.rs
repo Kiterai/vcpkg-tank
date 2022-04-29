@@ -1,9 +1,11 @@
 use actix_files as web_fs;
+use actix_web::dev::{ServiceRequest, ServiceResponse};
 use actix_web::{post, web, App, HttpResponse, HttpServer, Responder};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 use tokio::process::Command;
+use web_fs::NamedFile;
 
 #[derive(Deserialize)]
 struct VcpkgPrepareRequest {
@@ -58,9 +60,19 @@ async fn prepare(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
-        App::new()
-            .service(prepare)
-            .service(web_fs::Files::new("/", "../frontend/dist").index_file("index.html"))
+        App::new().service(prepare).service(
+            web_fs::Files::new("/", "../frontend/dist")
+                .index_file("index.html")
+                .default_handler(|req: ServiceRequest| {
+                    let (http_req, _payload) = req.into_parts();
+
+                    async {
+                        let response = NamedFile::open("../frontend/dist/index.html")?
+                            .into_response(&http_req);
+                        Ok(ServiceResponse::new(http_req, response))
+                    }
+                }),
+        )
     })
     .bind(("127.0.0.1", 8080))?
     .run()
