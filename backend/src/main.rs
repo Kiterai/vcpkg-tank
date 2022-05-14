@@ -1,6 +1,6 @@
 use actix_files as web_fs;
 use actix_web::dev::{ServiceRequest, ServiceResponse};
-use actix_web::{post, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
@@ -17,8 +17,23 @@ struct VcpkgPrepareResponse {
     pkgs: Vec<String>,
 }
 
-#[post("/api/prepare")]
-async fn prepare(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
+#[post("/api/export")]
+async fn export_request(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
+    HttpResponse::Ok().finish()
+}
+
+#[get("/api/export")]
+async fn export_get(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
+    HttpResponse::Ok().finish()
+}
+
+#[get("/api/export-once")]
+async fn export_integrated(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
+    HttpResponse::Ok().finish()
+}
+
+#[post("/api/install")]
+async fn install(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
     let outdir = "../pkgfiles";
 
     if !Path::exists(Path::new(outdir)) {
@@ -52,7 +67,7 @@ async fn prepare(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
         }
     }
 
-    HttpResponse::Created().json(VcpkgPrepareResponse {
+    HttpResponse::Accepted().json(VcpkgPrepareResponse {
         pkgs: req.pkgs.clone(),
     })
 }
@@ -60,19 +75,24 @@ async fn prepare(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
-        App::new().service(prepare).service(
-            web_fs::Files::new("/", "../frontend/dist")
-                .index_file("index.html")
-                .default_handler(|req: ServiceRequest| {
-                    let (http_req, _payload) = req.into_parts();
+        App::new()
+            .service(export_request)
+            .service(export_get)
+            .service(export_integrated)
+            .service(install)
+            .service(
+                web_fs::Files::new("/", "../frontend/dist")
+                    .index_file("index.html")
+                    .default_handler(|req: ServiceRequest| {
+                        let (http_req, _payload) = req.into_parts();
 
-                    async {
-                        let response = NamedFile::open("../frontend/dist/index.html")?
-                            .into_response(&http_req);
-                        Ok(ServiceResponse::new(http_req, response))
-                    }
-                }),
-        )
+                        async {
+                            let response = NamedFile::open("../frontend/dist/index.html")?
+                                .into_response(&http_req);
+                            Ok(ServiceResponse::new(http_req, response))
+                        }
+                    }),
+            )
     })
     .bind(("127.0.0.1", 8080))?
     .run()
