@@ -20,16 +20,30 @@ export default defineComponent({
   name: "Home",
   methods: {
     DownloadRequest() {
-      if(!this.input_pkglist){
+      if (!this.input_pkglist) {
         return;
       }
 
-      const id = this.tasks.length.toString();  // TODO
+      fetch("/api/export", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          pkgs: [this.input_pkglist],
+        }),
+      })
+        .then((res) => {
+          return res.json();
+        })
+        .then((res) => {
+          const id = res.id;
 
-      this.tasks.push({
-        id: id,
-        pkgs: this.input_pkglist,
-      });
+          this.tasks.push({
+            id: id,
+            pkgs: this.input_pkglist,
+          });
+        });
     },
   },
   data(): {
@@ -82,7 +96,7 @@ export default defineComponent({
   }
 }
 
-ul{
+ul {
   padding: 0;
 }
 
@@ -91,5 +105,4 @@ ul{
   font-weight: bold;
   font-size: 1.2rem;
 }
-
 </style>
