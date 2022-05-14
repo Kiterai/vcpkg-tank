@@ -2,19 +2,25 @@
   <div class="center space-tb">
     <h1>Vcpkg Tank</h1>
     <p>
-      <input v-model="input_pkglist" autofocus class="input-pkglist" type="text" />
+      <input v-model="input_pkglist" autofocus class="input-pkglist wide" type="text" />
     </p>
     <p>
-      <button class="btn-download" @click="DownloadRequest">Download</button>
+      <button class="btn btn-request" @click="DownloadRequest" :disabled="!input_pkglist">Download</button>
     </p>
     <ul>
-      <li v-for="task in tasks" :key="task.id" class="task">{{ task.pkgs }}</li>
+      <li v-for="task in tasks" :key="task.id" class="task wide">
+        <div class="task-name">{{ task.pkgs }}</div>
+        <div class="task-info">
+          <button v-if="task.loading" class="btn btn-download" disabled>Loading...</button>
+          <a v-else class="btn btn-download" :href="task.url">Download</a>
+        </div>
+      </li>
     </ul>
   </div>
 </template>
 
 <script lang="ts">
-import { defineComponent, ref } from "vue";
+import { defineComponent } from "vue";
 
 export default defineComponent({
   name: "Home",
@@ -42,6 +48,8 @@ export default defineComponent({
           this.tasks.push({
             id: id,
             pkgs: this.input_pkglist,
+            loading: true,
+            url: "",
           });
         });
     },
@@ -50,6 +58,8 @@ export default defineComponent({
     tasks: Array<{
       id: string;
       pkgs: string;
+      loading: boolean;
+      url: string;
     }>;
     input_pkglist: string;
   } {
@@ -70,25 +80,27 @@ export default defineComponent({
   margin: 5rem 0;
 }
 
+.wide {
+  width: 40rem;
+  max-width: 90%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .input-pkglist {
   font-size: 2rem;
   font-weight: bold;
   padding: 0.8rem;
   border-radius: 0.8rem;
-  width: 20em;
-  max-width: 90%;
 }
 
-.btn-download {
-  border: 0.4rem solid #000;
-  border-radius: 1.2rem;
-  font-size: 1.5rem;
+.btn {
+  border: solid #000;
   font-weight: bold;
-  padding: 0.8rem;
   background: #000;
   color: #fff;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 
   &:hover {
     background: #fff;
@@ -96,13 +108,47 @@ export default defineComponent({
   }
 }
 
+.btn[disabled] {
+  cursor: default;
+  background: #888;
+  border-color: #888;
+
+  &:hover {
+    color: #fff;
+  }
+}
+
+.btn-request {
+  font-size: 1.5rem;
+  padding: 0.8rem;
+  border-radius: 1.2rem;
+  border-width: 0.4rem;
+}
+
+.btn-download {
+  font-size: 1.2rem;
+  padding: 0 0.2rem;
+  border-radius: 0.5rem;
+  border-width: 0.2rem;
+}
+
 ul {
   padding: 0;
 }
 
 .task {
-  display: block;
+  display: flex;
   font-weight: bold;
   font-size: 1.2rem;
+  margin-top: 0.5rem;
+}
+
+.task-name {
+  width: calc(100% - 8rem);
+  word-wrap: break-word;
+}
+.task-info {
+  width: 8rem;
+  align-self: center;
 }
 </style>
