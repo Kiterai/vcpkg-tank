@@ -29,6 +29,8 @@ export default defineComponent({
       if (!this.input_pkglist) {
         return;
       }
+      const target_pkglist = this.input_pkglist;
+      this.input_pkglist = "";
 
       fetch("/api/export", {
         method: "POST",
@@ -36,7 +38,7 @@ export default defineComponent({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          pkgs: [this.input_pkglist],
+          pkgs: [target_pkglist],
         }),
       })
         .then((res) => {
@@ -44,6 +46,13 @@ export default defineComponent({
         })
         .then((res) => {
           const id = res.id;
+
+          this.tasks.push({
+            id: id,
+            pkgs: target_pkglist,
+            loading: true,
+            url: "",
+          });
 
           const timer = setInterval(() => {
             const i = this.tasks.findIndex((task) => {
@@ -59,13 +68,6 @@ export default defineComponent({
               }
             });
           }, 2000);
-
-          this.tasks.push({
-            id: id,
-            pkgs: this.input_pkglist,
-            loading: true,
-            url: "",
-          });
         });
     },
   },
