@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 use tokio::process::Command;
+use uuid::Uuid;
 use web_fs::NamedFile;
 
 #[derive(Deserialize)]
@@ -14,16 +15,36 @@ struct VcpkgPrepareRequest {
 
 #[derive(Serialize)]
 struct VcpkgPrepareResponse {
+    id: Uuid,
+    pkgs: Vec<String>,
+}
+
+#[derive(Deserialize)]
+struct VcpkgGetRequest {
+    id: Uuid,
+}
+
+#[derive(Serialize)]
+struct VcpkgInstallResponse {
+    id: Uuid,
     pkgs: Vec<String>,
 }
 
 #[post("/api/export")]
 async fn export_request(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
-    HttpResponse::Ok().finish()
+    let uuid = Uuid::new_v4();
+    let pkgs = &req.pkgs;
+
+    // todo!();
+
+    HttpResponse::Accepted().json(VcpkgPrepareResponse {
+        id: uuid,
+        pkgs: pkgs.to_owned(),
+    })
 }
 
 #[get("/api/export")]
-async fn export_get(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
+async fn export_get(req: web::Query<VcpkgGetRequest>) -> impl Responder {
     HttpResponse::Ok().finish()
 }
 
@@ -67,7 +88,10 @@ async fn install(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
         }
     }
 
-    HttpResponse::Accepted().json(VcpkgPrepareResponse {
+    let uuid = Uuid::new_v4();
+
+    HttpResponse::Accepted().json(VcpkgInstallResponse {
+        id: uuid,
         pkgs: req.pkgs.clone(),
     })
 }
