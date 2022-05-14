@@ -1,6 +1,6 @@
 use actix_files as web_fs;
 use actix_web::dev::{ServiceRequest, ServiceResponse};
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder, head};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
@@ -41,6 +41,11 @@ async fn export_request(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
         id: uuid,
         pkgs: pkgs.to_owned(),
     })
+}
+
+#[head("/api/export")]
+async fn export_chk(req: web::Query<VcpkgGetRequest>) -> impl Responder {
+    HttpResponse::Ok().finish()
 }
 
 #[get("/api/export")]
@@ -101,6 +106,7 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
         App::new()
             .service(export_request)
+            .service(export_chk)
             .service(export_get)
             .service(export_integrated)
             .service(install)
