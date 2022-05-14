@@ -45,6 +45,21 @@ export default defineComponent({
         .then((res) => {
           const id = res.id;
 
+          const timer = setInterval(() => {
+            const i = this.tasks.findIndex((task) => {
+              return task.id == id;
+            });
+            fetch(`/api/export?id=${id}`, {
+              method: "HEAD",
+            }).then((res) => {
+              if (res.status == 200) {
+                this.tasks[i].loading = false;
+                this.tasks[i].url = `/api/export?id=${id}`;
+                clearInterval(timer);
+              }
+            });
+          }, 2000);
+
           this.tasks.push({
             id: id,
             pkgs: this.input_pkglist,
@@ -101,6 +116,9 @@ export default defineComponent({
   color: #fff;
   cursor: pointer;
   transition: background-color 0.2s ease, border-color 0.2s ease;
+  text-decoration: none;
+  font-family: sans-serif;
+  display: inline-block;
 
   &:hover {
     background: #fff;
