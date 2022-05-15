@@ -3,7 +3,7 @@ use actix_web::dev::{ServiceRequest, ServiceResponse};
 use actix_web::{get, head, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tokio::process::Command;
 use uuid::Uuid;
 use web_fs::NamedFile;
@@ -37,14 +37,22 @@ enum TaskState {
     None,
 }
 
+fn get_progress_log_path(pkg_dir_path_str: &str, id: &Uuid) -> PathBuf {
+    PathBuf::from(format!("{}/{}.progress.log", pkg_dir_path_str, id.to_string()).as_str())
+}
+
+fn get_pkg_file_path(pkg_dir_path_str: &str, id: &Uuid) -> PathBuf {
+    PathBuf::from(format!("{}/{}.zip", pkg_dir_path_str, id.to_string()).as_str())
+}
+
+fn get_error_log_path(pkg_dir_path_str: &str, id: &Uuid) -> PathBuf {
+    PathBuf::from(format!("{}/{}.error.log", pkg_dir_path_str, id.to_string()).as_str())
+}
+
 fn chk_task_state(pkg_dir_path_str: &str, id: &Uuid) -> TaskState {
-    let progress_log_path =
-        Path::new(format!("{}/{}.progress.log", pkg_dir_path_str, id.to_string()).as_str())
-            .to_owned();
-    let pkg_file_path =
-        Path::new(format!("{}/{}.zip", pkg_dir_path_str, id.to_string()).as_str()).to_owned();
-    let err_log_path =
-        Path::new(format!("{}/{}.error.log", pkg_dir_path_str, id.to_string()).as_str()).to_owned();
+    let progress_log_path = get_progress_log_path(pkg_dir_path_str, id);
+    let pkg_file_path = get_pkg_file_path(pkg_dir_path_str, id);
+    let err_log_path = get_error_log_path(pkg_dir_path_str, id);
 
     let is_progress = progress_log_path.exists();
     let is_err_occured = err_log_path.exists();
@@ -121,8 +129,7 @@ async fn export_get(req: web::Query<VcpkgGetRequest>, req_base: HttpRequest) -> 
 
     match task_state {
         TaskState::Done => {
-            let pkg_file_path = format!("{}/{}.zip", pkg_dir_path_str, req.id.to_string());
-            let file = NamedFile::open(pkg_file_path).unwrap();
+            let file = NamedFile::open(get_pkg_file_path(pkg_dir_path_str, &req.id)).unwrap();
 
             file.into_response(&req_base)
         }
