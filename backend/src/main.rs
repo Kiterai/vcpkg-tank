@@ -35,7 +35,33 @@ async fn export_request(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
     let uuid = Uuid::new_v4();
     let pkgs = &req.pkgs;
 
-    // todo!();
+    let pkg_dir_path = "../pkgfiles";
+
+    let res = Command::new("vcpkg")
+        .arg("export")
+        .args(&req.pkgs)
+        .arg("--zip")
+        .arg(format!("--output-dir={}", pkg_dir_path))
+        .arg(format!("--output={}", uuid.to_string()))
+        .output()
+        .await;
+
+    match res {
+        Ok(out) => {
+            if out.status.success() {
+                println!("{}", String::from_utf8_lossy(&out.stdout));
+            } else {
+                println!("err: vcpkg");
+                println!("{}", String::from_utf8_lossy(&out.stdout));
+                return HttpResponse::InternalServerError().finish();
+            }
+        },
+        Err(e) => {
+            println!("err: command execution err");
+            println!("{}", e.to_string());
+            return HttpResponse::InternalServerError().finish();
+        },
+    }
 
     HttpResponse::Accepted().json(VcpkgPrepareResponse {
         id: uuid,
@@ -45,7 +71,25 @@ async fn export_request(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
 
 #[head("/api/export")]
 async fn export_chk(req: web::Query<VcpkgGetRequest>) -> impl Responder {
-    HttpResponse::Ok().finish()
+    let pkg_dir_path_str = "../pkgfiles";
+    
+    let progress_log_path = Path::new(format!("{}/{}.progress.log", pkg_dir_path_str, req.id.to_string()).as_str()).to_owned();
+    let pkg_file_path = Path::new(format!("{}/{}.zip", pkg_dir_path_str, req.id.to_string()).as_str()).to_owned();
+    let err_log_path = Path::new(format!("{}/{}.error.log", pkg_dir_path_str, req.id.to_string()).as_str()).to_owned();
+
+    let is_progress = progress_log_path.exists();
+    let is_err_occured = err_log_path.exists();
+    let is_valid = !is_progress && !is_err_occured && pkg_file_path.exists() && pkg_file_path.is_file();
+
+    if is_valid {
+        HttpResponse::Ok().finish()
+    } else if is_err_occured {
+        HttpResponse::InternalServerError().finish()
+    } else if is_progress {
+        HttpResponse::Accepted().finish()
+    } else {
+        HttpResponse::NotFound().finish()
+    }
 }
 
 #[get("/api/export")]
