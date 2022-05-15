@@ -30,6 +30,33 @@ struct VcpkgInstallResponse {
     pkgs: Vec<String>,
 }
 
+enum TaskState {
+    Progress,
+    ErrorOccured,
+    Done,
+    None,
+}
+
+fn chk_task_state(pkg_dir_path_str: &str, id: &Uuid) -> TaskState {
+    let progress_log_path = Path::new(format!("{}/{}.progress.log", pkg_dir_path_str, id.to_string()).as_str()).to_owned();
+    let pkg_file_path = Path::new(format!("{}/{}.zip", pkg_dir_path_str, id.to_string()).as_str()).to_owned();
+    let err_log_path = Path::new(format!("{}/{}.error.log", pkg_dir_path_str, id.to_string()).as_str()).to_owned();
+
+    let is_progress = progress_log_path.exists();
+    let is_err_occured = err_log_path.exists();
+    let is_valid = !is_progress && !is_err_occured && pkg_file_path.exists() && pkg_file_path.is_file();
+
+    if is_valid {
+        TaskState::Done
+    } else if is_err_occured {
+        TaskState::ErrorOccured
+    } else if is_progress {
+        TaskState::Progress
+    } else {
+        TaskState::None
+    }
+}
+
 #[post("/api/export")]
 async fn export_request(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
     let uuid = Uuid::new_v4();
@@ -72,23 +99,13 @@ async fn export_request(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
 #[head("/api/export")]
 async fn export_chk(req: web::Query<VcpkgGetRequest>) -> impl Responder {
     let pkg_dir_path_str = "../pkgfiles";
-    
-    let progress_log_path = Path::new(format!("{}/{}.progress.log", pkg_dir_path_str, req.id.to_string()).as_str()).to_owned();
-    let pkg_file_path = Path::new(format!("{}/{}.zip", pkg_dir_path_str, req.id.to_string()).as_str()).to_owned();
-    let err_log_path = Path::new(format!("{}/{}.error.log", pkg_dir_path_str, req.id.to_string()).as_str()).to_owned();
+    let task_state = chk_task_state(pkg_dir_path_str, &req.id);
 
-    let is_progress = progress_log_path.exists();
-    let is_err_occured = err_log_path.exists();
-    let is_valid = !is_progress && !is_err_occured && pkg_file_path.exists() && pkg_file_path.is_file();
-
-    if is_valid {
-        HttpResponse::Ok().finish()
-    } else if is_err_occured {
-        HttpResponse::InternalServerError().finish()
-    } else if is_progress {
-        HttpResponse::Accepted().finish()
-    } else {
-        HttpResponse::NotFound().finish()
+    match task_state {
+        TaskState::Done => HttpResponse::Ok().finish(),
+        TaskState::ErrorOccured => HttpResponse::InternalServerError().finish(),
+        TaskState::Progress => HttpResponse::Accepted().finish(),
+        TaskState::None => HttpResponse::NotFound().finish(),
     }
 }
 
