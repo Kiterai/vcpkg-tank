@@ -37,6 +37,8 @@ enum TaskState {
     None,
 }
 
+const PKGDIR_PATH: &str = "../pkgfiles";
+
 fn get_progress_log_path(pkg_dir_path_str: &str, id: &Uuid) -> PathBuf {
     PathBuf::from(format!("{}/{}.progress.log", pkg_dir_path_str, id.to_string()).as_str())
 }
@@ -75,7 +77,7 @@ async fn export_request(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
     let uuid = Uuid::new_v4();
     let pkgs = &req.pkgs;
 
-    let pkg_dir_path = "../pkgfiles";
+    let pkg_dir_path = PKGDIR_PATH;
 
     let res = Command::new("vcpkg")
         .arg("export")
@@ -111,7 +113,7 @@ async fn export_request(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
 
 #[head("/api/export")]
 async fn export_chk(req: web::Query<VcpkgGetRequest>) -> impl Responder {
-    let pkg_dir_path_str = "../pkgfiles";
+    let pkg_dir_path_str = PKGDIR_PATH;
     let task_state = chk_task_state(pkg_dir_path_str, &req.id);
 
     match task_state {
@@ -124,7 +126,7 @@ async fn export_chk(req: web::Query<VcpkgGetRequest>) -> impl Responder {
 
 #[get("/api/export")]
 async fn export_get(req: web::Query<VcpkgGetRequest>, req_base: HttpRequest) -> impl Responder {
-    let pkg_dir_path_str = "../pkgfiles";
+    let pkg_dir_path_str = PKGDIR_PATH;
     let task_state = chk_task_state(pkg_dir_path_str, &req.id);
 
     match task_state {
@@ -146,7 +148,7 @@ async fn export_integrated(req: web::Json<VcpkgPrepareRequest>) -> impl Responde
 
 #[post("/api/install")]
 async fn install(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
-    let outdir = "../pkgfiles";
+    let outdir = PKGDIR_PATH;
 
     if !Path::exists(Path::new(outdir)) {
         let res = fs::create_dir(outdir);
