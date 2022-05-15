@@ -148,16 +148,6 @@ async fn export_integrated(req: web::Json<VcpkgPrepareRequest>) -> impl Responde
 
 #[post("/api/install")]
 async fn install(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
-    let outdir = PKGDIR_PATH;
-
-    if !Path::exists(Path::new(outdir)) {
-        let res = fs::create_dir(outdir);
-        if let Err(_) = res {
-            println!("err: creating directory");
-            return HttpResponse::InternalServerError().finish();
-        }
-    }
-
     let res = Command::new("vcpkg")
         .arg("install")
         .args(&req.pkgs)
