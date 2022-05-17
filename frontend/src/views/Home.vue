@@ -11,7 +11,8 @@
       <li v-for="task in tasks" :key="task.id" class="task wide">
         <div class="task-name">{{ task.pkgs }}</div>
         <div class="task-info">
-          <button v-if="task.loading" class="btn btn-download" disabled>Loading...</button>
+          <div v-if="task.error" class="btn btn-error">Error</div>
+          <button v-else-if="task.loading" class="btn btn-download" disabled>Loading...</button>
           <a v-else class="btn btn-download" :href="task.url">Download</a>
         </div>
       </li>
@@ -51,6 +52,7 @@ export default defineComponent({
             id: id,
             pkgs: target_pkglist,
             loading: true,
+            error: false,
             url: "",
           });
 
@@ -67,13 +69,17 @@ export default defineComponent({
             fetch(`/api/export?id=${id}`, {
               method: "HEAD",
               signal: controller.signal,
-            }).then((res) => {
-              if (res.status == 200) {
-                this.tasks[i].loading = false;
-                this.tasks[i].url = `/api/export?id=${id}`;
-                clearInterval(timer);
-              }
-            });
+            })
+              .then((res) => {
+                if (res.status == 200) {
+                  this.tasks[i].loading = false;
+                  this.tasks[i].url = `/api/export?id=${id}`;
+                  clearInterval(timer);
+                } else if (res.status >= 400) {
+                  this.tasks[i].error = true;
+                  clearInterval(timer);
+                }
+              });
           }, 2000);
         });
     },
@@ -83,6 +89,7 @@ export default defineComponent({
       id: string;
       pkgs: string;
       loading: boolean;
+      error: boolean;
       url: string;
     }>;
     input_pkglist: string;
@@ -157,6 +164,15 @@ export default defineComponent({
   padding: 0 0.2rem;
   border-radius: 0.5rem;
   border-width: 0.2rem;
+}
+
+.btn-error {
+  font-size: 1.2rem;
+  padding: 0 0.2rem;
+  border-radius: 0.5rem;
+  border-width: 0.2rem;
+  border-color: #fa7;
+  background-color: #fa7;
 }
 
 ul {
