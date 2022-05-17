@@ -2,8 +2,7 @@ use actix_files as web_fs;
 use actix_web::dev::{ServiceRequest, ServiceResponse};
 use actix_web::{get, head, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tokio::process::Command;
 use uuid::Uuid;
 use web_fs::NamedFile;
@@ -72,21 +71,35 @@ fn chk_task_state(pkg_dir_path_str: &str, id: &Uuid) -> TaskState {
     }
 }
 
+async fn vcpkg_start_export(
+    pkgs: &[String],
+    output_dir: &str,
+    output_file: &str,
+) -> Result<std::process::Output, std::io::Error> {
+    Command::new("vcpkg")
+        .arg("export")
+        .args(pkgs)
+        .arg("--zip")
+        .arg(format!("--output-dir={}", output_dir))
+        .arg(format!("--output={}", output_file))
+        .output()
+        .await
+}
+
+async fn vcpkg_start_install(pkgs: &[String]) -> Result<std::process::Output, std::io::Error> {
+    Command::new("vcpkg")
+        .arg("install")
+        .args(pkgs)
+        .output()
+        .await
+}
+
 #[post("/api/export")]
 async fn export_request(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
     let uuid = Uuid::new_v4();
     let pkgs = &req.pkgs;
 
-    let pkg_dir_path = PKGDIR_PATH;
-
-    let res = Command::new("vcpkg")
-        .arg("export")
-        .args(&req.pkgs)
-        .arg("--zip")
-        .arg(format!("--output-dir={}", pkg_dir_path))
-        .arg(format!("--output={}", uuid.to_string()))
-        .output()
-        .await;
+    let res = vcpkg_start_export(pkgs, PKGDIR_PATH, uuid.to_string().as_str()).await;
 
     match res {
         Ok(out) => {
@@ -148,11 +161,7 @@ async fn export_integrated(req: web::Json<VcpkgPrepareRequest>) -> impl Responde
 
 #[post("/api/install")]
 async fn install(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
-    let res = Command::new("vcpkg")
-        .arg("install")
-        .args(&req.pkgs)
-        .output()
-        .await;
+    let res = vcpkg_start_install(req.pkgs.as_slice()).await;
 
     match res {
         Ok(out) => {
