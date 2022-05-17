@@ -46,8 +46,8 @@ impl Handler<ExportRequest> for VcpkgActor {
             .arg("export")
             .args(msg.pkgs)
             .arg("--zip")
-            .arg(format!("--output-dir={}", format!("{}/out{}", PKGDIR_PATH, msg.id.to_string())))
-            .arg(format!("--output={}", "pkgfile"))
+            .arg(format!("--output-dir={}", get_pkg_file_dir_path(&msg.id)))
+            .arg(format!("--output={}", get_pkg_file_name()))
             .output();
 
         match res {
@@ -97,8 +97,16 @@ pub fn get_progress_log_path(id: &Uuid) -> PathBuf {
     PathBuf::from(format!("{}/{}.progress.log", PKGDIR_PATH, id.to_string()).as_str())
 }
 
+pub fn get_pkg_file_dir_path(id: &Uuid) -> String {
+    format!("{}/out{}", PKGDIR_PATH, id.to_string())
+}
+
+pub fn get_pkg_file_name() -> String {
+    "pkgfile".to_owned()
+}
+
 pub fn get_pkg_file_path(id: &Uuid) -> PathBuf {
-    PathBuf::from(format!("{}/out{}/pkgfile.zip", PKGDIR_PATH, id.to_string()).as_str())
+    PathBuf::from(format!("{}/{}.zip", get_pkg_file_dir_path(id), get_pkg_file_name()).as_str())
 }
 
 pub fn get_error_log_path(id: &Uuid) -> PathBuf {
@@ -166,8 +174,8 @@ pub async fn vcpkg_export(
         .arg("export")
         .args(pkgs)
         .arg("--zip")
-        .arg(format!("--output-dir={}", PKGDIR_PATH))
-        .arg(format!("--output={}", id.to_string()))
+        .arg(format!("--output-dir={}", get_pkg_file_dir_path(&id)))
+        .arg(format!("--output={}", get_pkg_file_name))
         .output()?;
 
     fs::remove_file(get_progress_log_path(&id))?;
