@@ -35,9 +35,14 @@ impl Handler<ExportRequest> for VcpkgActor {
     type Result = Result<Output, std::io::Error>;
 
     fn handle(&mut self, msg: ExportRequest, _ctx: &mut Context<Self>) -> Self::Result {
-        File::create(get_progress_log_path(&msg.id))?;
+        let res = File::create(get_progress_log_path(&msg.id));
 
-        let out = Command::new("vcpkg")
+        if let Err(e) = res {
+            println!("error: {}", e.to_string());
+            return Err(e);
+        }
+
+        let res = Command::new("vcpkg")
             .arg("export")
             .args(msg.pkgs)
             .arg("--zip")
@@ -45,9 +50,22 @@ impl Handler<ExportRequest> for VcpkgActor {
             .arg(format!("--output={}", msg.id.to_string()))
             .output();
 
-        fs::remove_file(get_progress_log_path(&msg.id))?;
+        match res {
+            Err(e) => {
+                println!("error: {}", e.to_string());
+                Err(e)
+            }
+            Ok(out) => {
+                let res = fs::remove_file(get_progress_log_path(&msg.id));
 
-        out
+                if let Err(e) = res {
+                    println!("error: {}", e.to_string());
+                    return Err(e);
+                }
+
+                Ok(out)
+            }
+        }
     }
 }
 
