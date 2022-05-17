@@ -58,8 +58,15 @@ export default defineComponent({
             const i = this.tasks.findIndex((task) => {
               return task.id == id;
             });
+
+            const controller = new AbortController();
+            const abort_timer = setTimeout(() => {
+              controller.abort();
+            }, 800);
+
             fetch(`/api/export?id=${id}`, {
               method: "HEAD",
+              signal: controller.signal,
             }).then((res) => {
               if (res.status == 200) {
                 this.tasks[i].loading = false;
