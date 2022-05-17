@@ -1,5 +1,6 @@
 use actix::prelude::*;
 use std::{
+    fs::{self, File},
     path::PathBuf,
     process::{Command, Output},
 };
@@ -12,13 +13,14 @@ pub struct VcpkgActor;
 #[derive(Message)]
 #[rtype(result = "Result<Output, std::io::Error>")]
 pub struct ExportRequest {
+    id: Uuid,
     pkgs: Vec<String>,
-    output_file: String,
 }
 
 #[derive(Message)]
 #[rtype(result = "Result<Output, std::io::Error>")]
 pub struct InstallRequest {
+    id: Uuid,
     pkgs: Vec<String>,
 }
 
@@ -33,13 +35,19 @@ impl Handler<ExportRequest> for VcpkgActor {
     type Result = Result<Output, std::io::Error>;
 
     fn handle(&mut self, msg: ExportRequest, _ctx: &mut Context<Self>) -> Self::Result {
-        Command::new("vcpkg")
+        File::create(get_progress_log_path(&msg.id))?;
+
+        let out = Command::new("vcpkg")
             .arg("export")
             .args(msg.pkgs)
             .arg("--zip")
             .arg(format!("--output-dir={}", PKGDIR_PATH))
-            .arg(format!("--output={}", msg.output_file))
-            .output()
+            .arg(format!("--output={}", msg.id.to_string()))
+            .output();
+
+        fs::remove_file(get_progress_log_path(&msg.id))?;
+
+        out
     }
 }
 
@@ -47,7 +55,8 @@ impl Handler<InstallRequest> for VcpkgActor {
     type Result = Result<Output, std::io::Error>;
 
     fn handle(&mut self, msg: InstallRequest, _ctx: &mut Context<Self>) -> Self::Result {
-        Command::new("vcpkg").arg("install").args(msg.pkgs).output()
+        let out = Command::new("vcpkg").arg("install").args(msg.pkgs).output();
+        out
     }
 }
 
@@ -98,8 +107,8 @@ pub async fn vcpkg_start_export(
     let id = Uuid::new_v4();
 
     actix_web::rt::spawn(addr.send(ExportRequest {
+        id: id,
         pkgs: pkgs.to_vec(),
-        output_file: id.to_string(),
     }));
 
     Ok(id)
@@ -109,9 +118,12 @@ pub async fn vcpkg_start_install(
     addr: &Addr<VcpkgActor>,
     pkgs: &[String],
 ) -> Result<Uuid, std::io::Error> {
+    let id = Uuid::new_v4();
+
     actix_web::rt::spawn(addr.send(InstallRequest {
+        id: id,
         pkgs: pkgs.to_vec(),
     }));
 
-    Ok(Uuid::new_v4())
+    Ok(id)
 }
