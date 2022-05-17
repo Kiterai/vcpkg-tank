@@ -30,14 +30,12 @@ struct VcpkgInstallResponse {
     pkgs: Vec<String>,
 }
 
-const PKGDIR_PATH: &str = "../pkgfiles";
-
 #[post("/api/export")]
 async fn export_request(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
     let uuid = Uuid::new_v4();
     let pkgs = &req.pkgs;
 
-    let res = vcpkg_start_export(pkgs, PKGDIR_PATH, uuid.to_string().as_str()).await;
+    let res = vcpkg_start_export(pkgs, uuid.to_string().as_str()).await;
 
     match res {
         Ok(out) => {
@@ -64,8 +62,7 @@ async fn export_request(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
 
 #[head("/api/export")]
 async fn export_chk(req: web::Query<VcpkgGetRequest>) -> impl Responder {
-    let pkg_dir_path_str = PKGDIR_PATH;
-    let task_state = chk_task_state(pkg_dir_path_str, &req.id);
+    let task_state = chk_task_state(&req.id);
 
     match task_state {
         TaskState::Done => HttpResponse::Ok().finish(),
@@ -77,12 +74,11 @@ async fn export_chk(req: web::Query<VcpkgGetRequest>) -> impl Responder {
 
 #[get("/api/export")]
 async fn export_get(req: web::Query<VcpkgGetRequest>, req_base: HttpRequest) -> impl Responder {
-    let pkg_dir_path_str = PKGDIR_PATH;
-    let task_state = chk_task_state(pkg_dir_path_str, &req.id);
+    let task_state = chk_task_state(&req.id);
 
     match task_state {
         TaskState::Done => {
-            let file = NamedFile::open(get_pkg_file_path(pkg_dir_path_str, &req.id)).unwrap();
+            let file = NamedFile::open(get_pkg_file_path(&req.id)).unwrap();
 
             file.into_response(&req_base)
         }
