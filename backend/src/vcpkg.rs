@@ -46,8 +46,8 @@ impl Handler<ExportRequest> for VcpkgActor {
             .arg("export")
             .args(msg.pkgs)
             .arg("--zip")
-            .arg(format!("--output-dir={}", PKGDIR_PATH))
-            .arg(format!("--output={}", msg.id.to_string()))
+            .arg(format!("--output-dir={}", format!("{}/out{}", PKGDIR_PATH, msg.id.to_string())))
+            .arg(format!("--output={}", "pkgfile"))
             .output();
 
         match res {
@@ -98,7 +98,7 @@ pub fn get_progress_log_path(id: &Uuid) -> PathBuf {
 }
 
 pub fn get_pkg_file_path(id: &Uuid) -> PathBuf {
-    PathBuf::from(format!("{}/{}.zip", PKGDIR_PATH, id.to_string()).as_str())
+    PathBuf::from(format!("{}/out{}/pkgfile.zip", PKGDIR_PATH, id.to_string()).as_str())
 }
 
 pub fn get_error_log_path(id: &Uuid) -> PathBuf {
