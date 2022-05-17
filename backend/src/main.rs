@@ -4,6 +4,7 @@ use actix_web::{get, head, post, web, App, HttpRequest, HttpResponse, HttpServer
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use web_fs::NamedFile;
+use actix::prelude::*;
 
 mod vcpkg;
 use vcpkg::*;
@@ -31,33 +32,26 @@ struct VcpkgInstallResponse {
 }
 
 #[post("/api/export")]
-async fn export_request(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
-    let uuid = Uuid::new_v4();
+async fn export_request(req: web::Json<VcpkgPrepareRequest>, addr: web::Data<Addr<VcpkgActor>>) -> impl Responder {
     let pkgs = &req.pkgs;
 
-    let res = vcpkg_start_export(pkgs, uuid.to_string().as_str()).await;
+    let res = vcpkg_start_export(&addr, &pkgs).await;
 
+    println!("vcpkg export: {}", req.pkgs.join(" "));
     match res {
-        Ok(out) => {
-            if out.status.success() {
-                println!("{}", String::from_utf8_lossy(&out.stdout));
-            } else {
-                println!("err: vcpkg");
-                println!("{}", String::from_utf8_lossy(&out.stdout));
-                return HttpResponse::InternalServerError().finish();
-            }
+        Ok(uuid) => {
+            println!("spawned");
+            HttpResponse::Accepted().json(VcpkgPrepareResponse {
+                id: uuid,
+                pkgs: pkgs.to_owned(),
+            })
         }
         Err(e) => {
             println!("err: command execution err");
             println!("{}", e.to_string());
-            return HttpResponse::InternalServerError().finish();
+            HttpResponse::InternalServerError().finish()
         }
     }
-
-    HttpResponse::Accepted().json(VcpkgPrepareResponse {
-        id: uuid,
-        pkgs: pkgs.to_owned(),
-    })
 }
 
 #[head("/api/export")]
@@ -89,43 +83,36 @@ async fn export_get(req: web::Query<VcpkgGetRequest>, req_base: HttpRequest) -> 
 }
 
 #[get("/api/export-once")]
-async fn export_integrated(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
+async fn export_integrated(_req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
     HttpResponse::Ok().finish()
 }
 
 #[post("/api/install")]
-async fn install(req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
-    let res = vcpkg_start_install(req.pkgs.as_slice()).await;
+async fn install(req: web::Json<VcpkgPrepareRequest>, addr: web::Data<Addr<VcpkgActor>>) -> impl Responder {
+    let res = vcpkg_start_install(&addr, req.pkgs.as_slice()).await;
 
+    println!("vcpkg install: {}", req.pkgs.join(" "));
     match res {
-        Ok(out) => {
-            if out.status.success() {
-                println!("{}", String::from_utf8_lossy(&out.stdout));
-            } else {
-                println!("err: vcpkg");
-                println!("{}", String::from_utf8_lossy(&out.stdout));
-                return HttpResponse::InternalServerError().finish();
-            }
+        Ok(uuid) => {
+            println!("spawned");
+            HttpResponse::Accepted().json(VcpkgInstallResponse {
+                id: uuid,
+                pkgs: req.pkgs.clone(),
+            })
         }
         Err(e) => {
             println!("err: command execution err");
             println!("{}", e.to_string());
-            return HttpResponse::InternalServerError().finish();
+            HttpResponse::InternalServerError().finish()
         }
     }
-
-    let uuid = Uuid::new_v4();
-
-    HttpResponse::Accepted().json(VcpkgInstallResponse {
-        id: uuid,
-        pkgs: req.pkgs.clone(),
-    })
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
         App::new()
+            .app_data(web::Data::new(VcpkgActor.start()))
             .service(export_request)
             .service(export_chk)
             .service(export_get)

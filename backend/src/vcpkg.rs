@@ -1,8 +1,55 @@
-use std::path::PathBuf;
-use tokio::process::Command;
+use actix::prelude::*;
+use std::{
+    path::PathBuf,
+    process::{Command, Output},
+};
 use uuid::Uuid;
 
 const PKGDIR_PATH: &str = "../pkgfiles";
+
+pub struct VcpkgActor;
+
+#[derive(Message)]
+#[rtype(result = "Result<Output, std::io::Error>")]
+pub struct ExportRequest {
+    pkgs: Vec<String>,
+    output_file: String,
+}
+
+#[derive(Message)]
+#[rtype(result = "Result<Output, std::io::Error>")]
+pub struct InstallRequest {
+    pkgs: Vec<String>,
+}
+
+impl Actor for VcpkgActor {
+    type Context = Context<Self>;
+
+    fn started(&mut self, _ctx: &mut Context<Self>) {}
+    fn stopped(&mut self, _ctx: &mut Context<Self>) {}
+}
+
+impl Handler<ExportRequest> for VcpkgActor {
+    type Result = Result<Output, std::io::Error>;
+
+    fn handle(&mut self, msg: ExportRequest, _ctx: &mut Context<Self>) -> Self::Result {
+        Command::new("vcpkg")
+            .arg("export")
+            .args(msg.pkgs)
+            .arg("--zip")
+            .arg(format!("--output-dir={}", PKGDIR_PATH))
+            .arg(format!("--output={}", msg.output_file))
+            .output()
+    }
+}
+
+impl Handler<InstallRequest> for VcpkgActor {
+    type Result = Result<Output, std::io::Error>;
+
+    fn handle(&mut self, msg: InstallRequest, _ctx: &mut Context<Self>) -> Self::Result {
+        Command::new("vcpkg").arg("install").args(msg.pkgs).output()
+    }
+}
 
 pub enum TaskState {
     Progress,
@@ -45,23 +92,26 @@ pub fn chk_task_state(id: &Uuid) -> TaskState {
 }
 
 pub async fn vcpkg_start_export(
+    addr: &Addr<VcpkgActor>,
     pkgs: &[String],
-    output_file: &str,
-) -> Result<std::process::Output, std::io::Error> {
-    Command::new("vcpkg")
-        .arg("export")
-        .args(pkgs)
-        .arg("--zip")
-        .arg(format!("--output-dir={}", PKGDIR_PATH))
-        .arg(format!("--output={}", output_file))
-        .output()
-        .await
+) -> Result<Uuid, std::io::Error> {
+    let id = Uuid::new_v4();
+
+    actix_web::rt::spawn(addr.send(ExportRequest {
+        pkgs: pkgs.to_vec(),
+        output_file: id.to_string(),
+    }));
+
+    Ok(id)
 }
 
-pub async fn vcpkg_start_install(pkgs: &[String]) -> Result<std::process::Output, std::io::Error> {
-    Command::new("vcpkg")
-        .arg("install")
-        .args(pkgs)
-        .output()
-        .await
+pub async fn vcpkg_start_install(
+    addr: &Addr<VcpkgActor>,
+    pkgs: &[String],
+) -> Result<Uuid, std::io::Error> {
+    actix_web::rt::spawn(addr.send(InstallRequest {
+        pkgs: pkgs.to_vec(),
+    }));
+
+    Ok(Uuid::new_v4())
 }

@@ -13,3 +13,4 @@ serde_json = "1.0.79"
 validator = { version="0.14.0", features = ["derive"] }
 uuid = { version = "1.0.0", features = ["serde", "v4"] }
 tokio = { version = "1.17.0", features = ["process"] }
+actix = "0.13.0"
