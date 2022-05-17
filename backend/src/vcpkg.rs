@@ -38,7 +38,7 @@ impl Handler<ExportRequest> for VcpkgActor {
         let res = File::create(get_progress_log_path(&msg.id));
 
         if let Err(e) = res {
-            println!("error: {}", e.to_string());
+            println!("file creation error: {}", e.to_string());
             return Err(e);
         }
 
@@ -52,14 +52,14 @@ impl Handler<ExportRequest> for VcpkgActor {
 
         match res {
             Err(e) => {
-                println!("error: {}", e.to_string());
+                println!("command execution error: {}", e.to_string());
                 Err(e)
             }
             Ok(out) => {
                 let res = fs::remove_file(get_progress_log_path(&msg.id));
 
                 if let Err(e) = res {
-                    println!("error: {}", e.to_string());
+                    println!("file removing error: {}", e.to_string());
                     return Err(e);
                 }
 
@@ -73,8 +73,16 @@ impl Handler<InstallRequest> for VcpkgActor {
     type Result = Result<Output, std::io::Error>;
 
     fn handle(&mut self, msg: InstallRequest, _ctx: &mut Context<Self>) -> Self::Result {
-        let out = Command::new("vcpkg").arg("install").args(msg.pkgs).output();
-        out
+        let res = Command::new("vcpkg").arg("install").args(msg.pkgs).output();
+        match res {
+            Err(e) => {
+                println!("command execution error: {}", e.to_string());
+                Err(e)
+            }
+            Ok(out) => {
+                Ok(out)
+            }
+        }
     }
 }
 
