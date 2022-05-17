@@ -168,7 +168,7 @@ pub async fn vcpkg_export(
         .arg("--zip")
         .arg(format!("--output-dir={}", PKGDIR_PATH))
         .arg(format!("--output={}", id.to_string()))
-        .output();
+        .output()?;
 
     fs::remove_file(get_progress_log_path(&id))?;
 
