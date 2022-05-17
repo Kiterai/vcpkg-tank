@@ -82,9 +82,25 @@ async fn export_get(req: web::Query<VcpkgGetRequest>, req_base: HttpRequest) -> 
     }
 }
 
-#[get("/api/export-once")]
-async fn export_integrated(_req: web::Json<VcpkgPrepareRequest>) -> impl Responder {
-    HttpResponse::Ok().finish()
+#[post("/api/export-once")]
+async fn export_integrated(req: web::Json<VcpkgPrepareRequest>, req_base: HttpRequest, addr: web::Data<Addr<VcpkgActor>>) -> impl Responder {
+    println!("vcpkg export: {}", req.pkgs.join(" "));
+
+    let res = vcpkg_export(&addr, req.pkgs.as_slice()).await;
+
+    match res {
+        Ok(uuid) => {
+            println!("done");
+            
+            let file = NamedFile::open(get_pkg_file_path(&uuid)).unwrap();
+
+            file.into_response(&req_base)
+        }
+        Err(e) => {
+            println!("err: {}", e.to_string());
+            HttpResponse::InternalServerError().finish()
+        }
+    }
 }
 
 #[post("/api/install")]

@@ -127,3 +127,24 @@ pub async fn vcpkg_start_install(
 
     Ok(id)
 }
+
+pub async fn vcpkg_export(
+    _addr: &Addr<VcpkgActor>,
+    pkgs: &[String],
+) -> Result<Uuid, std::io::Error> {
+    let id = Uuid::new_v4();
+
+    File::create(get_progress_log_path(&id))?;
+
+    let _out = Command::new("vcpkg")
+        .arg("export")
+        .args(pkgs)
+        .arg("--zip")
+        .arg(format!("--output-dir={}", PKGDIR_PATH))
+        .arg(format!("--output={}", id.to_string()))
+        .output();
+
+    fs::remove_file(get_progress_log_path(&id))?;
+
+    Ok(id)
+}
