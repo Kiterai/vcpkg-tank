@@ -5,6 +5,10 @@
       <input v-model="input_pkglist" autofocus class="input-pkglist wide" type="text" />
     </p>
     <p>
+      <input :value="wget_cmd" class="pkg-getcommand wide" readonly />
+      <button class="pkg-getcommand-copy" @click="CmdCopy" :disabled="!input_pkglist">Copy</button>
+    </p>
+    <p>
       <button class="btn btn-request" @click="DownloadRequest" :disabled="!input_pkglist">Download</button>
     </p>
     <ul>
@@ -26,6 +30,12 @@ import { defineComponent } from "vue";
 export default defineComponent({
   name: "Home",
   methods: {
+    CmdCopy() {
+      navigator.clipboard.writeText(this.wget_cmd)
+        .then(() => {
+          alert('copied!');
+        });
+    },
     DownloadRequest() {
       if (!this.input_pkglist) {
         return;
@@ -99,6 +109,20 @@ export default defineComponent({
       input_pkglist: "",
     };
   },
+  computed: {
+    wget_cmd: function() {
+      if(!this.input_pkglist) {
+        return "";
+      }
+
+      const target_pkglist = this.input_pkglist.split(' ') as string[];
+      const post_data = {
+        pkgs: target_pkglist
+      };
+
+      return `wget --post-data='${JSON.stringify(post_data)}' --header="content-Type: text/json" ${location.origin}/api/export-once -O pkgfile.zip`;
+    }
+  }
 });
 </script>
 
@@ -123,6 +147,39 @@ export default defineComponent({
   font-weight: bold;
   padding: 0.8rem;
   border-radius: 0.8rem;
+  border: solid #000 0.1rem;
+}
+
+.pkg-getcommand {
+  font-size: 1.2rem;
+  font-weight: bold;
+  padding: 0.5rem;
+  border-radius: 0.5rem 0 0 0.5rem;
+  border: solid #000 0.1rem;
+  background: #888;
+}
+
+.pkg-getcommand-copy {
+  color: #ccc;
+  font-size: 1.2rem;
+  font-weight: bold;
+  padding: 0.5rem;
+  border-radius: 0 0.5rem 0.5rem 0;
+  border: solid #000 0.1rem;
+  border-left: none;
+  background: #eee;
+  vertical-align: bottom;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.pkg-getcommand-copy:not([disabled]) {
+  color: #000;
+  background: #fff;
+  cursor: pointer;
+}
+
+.pkg-getcommand-copy:hover:not([disabled]) {
+  background: #ccc;
 }
 
 .btn {
