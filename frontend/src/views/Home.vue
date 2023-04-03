@@ -49,7 +49,7 @@ export default defineComponent({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          pkgs: [target_pkglist],
+          pkgs: target_pkglist.split(' '),
         }),
       })
         .then((res) => {
